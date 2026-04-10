@@ -1,4 +1,4 @@
-var API_URL = 'https://deal-scout-bzpjxyi0p-lampherez75-5227s-projects.vercel.app/api/search';
+const API_URL = 'https://penny-pounce.vercel.app/api/search';
 
 var productNameEl = document.getElementById('productName');
 var searchBtn = document.getElementById('searchBtn');
