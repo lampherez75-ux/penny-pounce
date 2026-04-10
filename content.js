@@ -3,9 +3,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'getProductInfo') {
     const productName = getProductName();
     sendResponse({ name: productName });
+
+    // Important: return true for async sendResponse
+    return true;
   }
-  // Important: return true for async sendResponse
-  return true;
 });
 
 function getProductName() {
@@ -13,7 +14,7 @@ function getProductName() {
   let name = document.querySelector('#productTitle')?.textContent?.trim();
   if (name) return name;
 
-  // Walmart  
+  // Walmart
   name = document.querySelector('[data-testid="product-title"]')?.textContent?.trim();
   if (name) return name;
 
@@ -30,7 +31,7 @@ function getProductName() {
     '[class*="product"][class*="title"]',
     'h1'
   ];
-  
+
   for (const sel of selectors) {
     const el = document.querySelector(sel);
     if (el && el.textContent?.trim().length > 5) {
