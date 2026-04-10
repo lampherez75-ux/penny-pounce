@@ -3,7 +3,24 @@
   "name": "PennyPounce",
   "version": "1.0.0",
   "description": "PennyPounce price comparison assistant",
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png"
+    }
+  },
   "permissions": ["activeTab", "scripting"],
-  "action": { "default_popup": "popup.html" },
-  "content_scripts": [{ "matches": ["*://*/*"], "js": ["content.js"] }]
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js"]
+    }
+  ]
 }
