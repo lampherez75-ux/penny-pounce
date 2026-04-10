@@ -2,38 +2,192 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width:320px">
-  <title>Deal Scout</title>
+  <meta name="viewport" content="width=320px">
+  <title>PennyPounce</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; }
-    .header { background: #e94560; padding: 12px 16px; display: flex; align-items: center; gap: 8px; }
-    .header h1 { font-size: 16px; font-weight: 600; }
-    .header-icon { width: 24px; height: 24px; }
-    .content { padding: 16px; }
-    .product-info { background: #16213e; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-    .product-info h2 { font-size: 12px; color: #a0a0a0; margin-bottom: 4px; }
-    .product-info p { font-size: 13px; line-height: 1.4; max-height: 40px; overflow: hidden; }
-    .btn { background: #e94560; color: #fff; border: none; width: 100%; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    .btn:hover { background: #d63d56; }
-    .btn:disabled { background: #555; cursor: not-allowed; }
-    .results { margin-top: 12px; max-height: 300px; overflow-y: auto; }
-    .result-item { background: #16213e; border-radius: 8px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .result-info { flex: 1; min-width: 0; }
-    .result-info .store { font-size: 11px; color: #4ecca3; text-transform: uppercase; font-weight: 600; }
-    .result-info .title { font-size: 12px; color: #ddd; line-height: 1.3; margin-top: 2px; }
-    .result-info .rating { font-size: 11px; color: #ffc107; margin-top: 2px; }
-    .result-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-    .result-right .price { font-size: 14px; font-weight: 700; color: #fff; }
-    .result-right a { background: #4ecca3; color: #1a1a2e; text-decoration: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-    .loading { text-align: center; padding: 20px; color: #a0a0a0; font-size: 13px; }
-    .error { background: #3d1f1f; color: #ff6b6b; padding: 12px; border-radius: 8px; font-size: 12px; }
+
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1020;
+      color: #f9fafb;
+    }
+
+    .header {
+      background: #7c3aed;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      color: #e5e7eb;
+      opacity: 0.85;
+    }
+
+    .logo-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      background: #fbbf24;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .product-info {
+      background: #111827;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .product-info h2 {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+
+    .product-info p {
+      font-size: 13px;
+      line-height: 1.4;
+      max-height: 40px;
+      overflow: hidden;
+    }
+
+    .btn {
+      background: #7c3aed;
+      color: #f9fafb;
+      border: none;
+      width: 100%;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: #6d28d9;
+    }
+
+    .btn:disabled {
+      background: #4b5563;
+      cursor: not-allowed;
+    }
+
+    .results {
+      margin-top: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .result-item {
+      background: #111827;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .result-info .store {
+      font-size: 11px;
+      color: #fbbf24;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .result-info .title {
+      font-size: 12px;
+      color: #e5e7eb;
+      line-height: 1.3;
+      margin-top: 2px;
+    }
+
+    .result-info .rating {
+      font-size: 11px;
+      color: #fbbf24;
+      margin-top: 2px;
+    }
+
+    .result-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .result-right .price {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f9fafb;
+    }
+
+    .result-right a {
+      background: #fbbf24;
+      color: #111827;
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #9ca3af;
+      font-size: 13px;
+    }
+
+    .error {
+      background: #3f1f2b;
+      color: #fecaca;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <svg class="header-icon" fill="currentColor" viewBox="0 0 24 24"><path d="M11 9h2V6h3V4h-3V1h-2v3H8v2h3v3zm-4 9c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm-9.83-3.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.86-7.01L19.42 5c-.41-1.01-1.51-1.75-2.65-1.75-.17 0-.33.02-.49.04l-.01.01L13.32 4.5c-.25-.25-.58-.39-.94-.39-.36 0-.69.14-.94.39l-.01.01-4.24 4.24-.03.12c-.41 1.01-1.51 1.75-2.65 1.75h-.01z"/></svg>
-    <h1>Deal Scout</h1>
+    <div class="logo-circle">PP</div>
+    <div class="header-title-group">
+      <h1>PennyPounce</h1>
+      <div class="header-subtitle">Smart price comparison</div>
+    </div>
   </div>
   <div class="content">
     <div class="product-info">
