@@ -1,0 +1,13 @@
+{
+  "name": "penny-pounce-api",
+  "version": "1.0.0",
+  "description": "Backend API for Penny Pounce price comparison extension",
+  "main": "api/search.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": ["price-comparison", "api", "serp"],
+  "author": "Your Name",
+  "license": "ISC"
+}
