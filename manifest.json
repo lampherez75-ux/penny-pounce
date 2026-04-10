@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Price Comparator",
+  "version": "1.0.0",
+  "description": "Compare clothing prices across retailers",
+  "permissions": ["activeTab", "scripting"],
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [{ "matches": ["*://*/*"], "js": ["content.js"] }]
+}
