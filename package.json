@@ -2,12 +2,20 @@
   "name": "penny-pounce-api",
   "version": "1.0.0",
   "description": "Backend API for Penny Pounce price comparison extension",
+  "type": "module",
   "main": "api/search.js",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "vendor:instant": "cp node_modules/@instantdb/core/dist/standalone/index.umd.js vendor/instantdb-core.umd.js"
   },
   "keywords": ["price-comparison", "api", "serp"],
   "author": "Your Name",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@instantdb/admin": "^0.17.0",
+    "@upstash/redis": "^1.34.3",
+    "stripe": "^17.4.0"
+  }
 }

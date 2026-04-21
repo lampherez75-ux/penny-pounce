@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=320px">
+  <meta name="viewport" content="width=320">
   <title>PennyPounce</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -121,6 +121,42 @@
       box-shadow: none;
     }
 
+    .btn-secondary {
+      background: #7a1740;
+      color: #fdf7ed;
+      margin-top: 8px;
+    }
+
+    .btn-secondary:hover {
+      background: #5c1130;
+    }
+
+    .tier-bar {
+      font-size: 11px;
+      color: #7a1740;
+      margin-bottom: 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .ai-panel {
+      margin-top: 10px;
+      padding: 10px;
+      background: #fff8ef;
+      border-radius: 10px;
+      border: 1px solid #f2d3a4;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #3b0820;
+      max-height: 160px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .ai-panel.visible {
+      display: block;
+    }
+
     .results {
       margin-top: 12px;
       max-height: 300px;
@@ -204,6 +240,21 @@
       font-size: 12px;
       border: 1px solid #fecaca;
     }
+
+    .footer-settings {
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    .footer-settings button {
+      background: none;
+      border: none;
+      color: #7a1740;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -223,9 +274,16 @@
       <h2>Current Product</h2>
       <p id="productName">Loading...</p>
     </div>
+    <div id="tierBar" class="tier-bar"></div>
     <button id="searchBtn" class="btn">Compare Prices</button>
+    <button id="aiBtn" class="btn btn-secondary" type="button" style="display:none">Analyze deals (AI)</button>
+    <div id="aiPanel" class="ai-panel"></div>
     <div id="results" class="results"></div>
+    <div class="footer-settings">
+      <button type="button" id="openSettings">Settings &amp; sign in</button>
+    </div>
   </div>
+  <script src="config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

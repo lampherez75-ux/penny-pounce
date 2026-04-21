@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PennyPounce — Settings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fdf7ed;
+      color: #3b0820;
+      padding: 20px;
+      max-width: 420px;
+    }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    .sub { font-size: 12px; color: #9b4b2d; margin-bottom: 20px; }
+    section {
+      background: #fff8ef;
+      border: 1px solid #f2d3a4;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    section h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #7a1740;
+      margin-bottom: 10px;
+    }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    input[type="text"], input[type="url"], input[type="email"] {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #e2c48a;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .btn {
+      background: #f4a824;
+      color: #3b0820;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { background: #7a1740; color: #fdf7ed; }
+    .muted { font-size: 11px; color: #9b4b2d; line-height: 1.4; margin-top: 8px; }
+    .status { font-size: 12px; margin-top: 8px; padding: 8px; border-radius: 8px; }
+    .status.ok { background: #dcfce7; color: #166534; }
+    .status.err { background: #fee2e2; color: #991b1b; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>PennyPounce settings</h1>
+  <p class="sub">API endpoint, InstantDB sign-in, and plan tier (via your backend).</p>
+
+  <section>
+    <h2>Backend</h2>
+    <label for="apiOrigin">API base URL</label>
+    <input type="url" id="apiOrigin" placeholder="https://your-app.vercel.app" autocomplete="off">
+    <button type="button" class="btn" id="saveBackend">Save</button>
+    <p class="muted">Must match the URL in the extension manifest <code>host_permissions</code> for production.</p>
+  </section>
+
+  <section>
+    <h2>InstantDB</h2>
+    <label for="instantAppId">App ID (public)</label>
+    <input type="text" id="instantAppId" placeholder="from Instant dashboard" autocomplete="off">
+    <button type="button" class="btn" id="saveInstantId">Save app ID</button>
+    <p class="muted">Used only for magic-code sign-in. The admin token stays on the server.</p>
+  </section>
+
+  <section id="authSection">
+    <h2>Account</h2>
+    <p id="authNeedId" class="muted">Save your Instant app ID above to enable sign-in.</p>
+    <div id="authForms" class="hidden">
+      <div id="signedOutBlock">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="email">
+        <button type="button" class="btn" id="sendCode">Send code</button>
+        <div id="codeWrap" class="hidden" style="margin-top:12px">
+          <label for="code">Code from email</label>
+          <input type="text" id="code" autocomplete="one-time-code">
+          <button type="button" class="btn" id="verifyCode">Verify</button>
+        </div>
+      </div>
+      <div id="signedInBlock" class="hidden">
+        <p id="signedInEmail" class="muted"></p>
+        <button type="button" class="btn btn-secondary" id="signOut">Sign out</button>
+      </div>
+    </div>
+    <div id="authStatus" class="status hidden"></div>
+  </section>
+
+  <script src="vendor/instantdb-core.umd.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
