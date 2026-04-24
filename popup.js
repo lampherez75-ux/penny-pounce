@@ -1,8 +1,11 @@
 var productNameEl = document.getElementById('productName');
 var searchBtn = document.getElementById('searchBtn');
 var resultsEl = document.getElementById('results');
-var tierBarEl = document.getElementById('tierBar');
+var tierLabelEl = document.getElementById('tierLabel');
+var dailySearchesEl = document.getElementById('dailySearches');
 var aiBtn = document.getElementById('aiBtn');
+var aiBtnWrapper = document.getElementById('aiBtnWrapper');
+var aiBtnLabel = document.getElementById('aiBtnLabel');
 var aiPanel = document.getElementById('aiPanel');
 
 var currentProduct = null;
@@ -66,21 +69,41 @@ function init() {
 }
 
 function setTierBar(usage, tier) {
-  if (!tierBarEl) return;
-  if (!usage || !tier) {
-    tierBarEl.textContent = '';
-    return;
+  if (tierLabelEl) {
+    tierLabelEl.textContent = tier
+      ? tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase()
+      : '';
   }
-  tierBarEl.textContent =
-    'Plan: ' + String(tier).toUpperCase() + ' — ' + usage.used + '/' + usage.limit + ' searches today';
+  if (dailySearchesEl) {
+    if (tier === 'lite' && usage) {
+      dailySearchesEl.textContent = usage.used + '/' + usage.limit + ' Daily Searches';
+      dailySearchesEl.style.display = 'block';
+    } else {
+      dailySearchesEl.style.display = 'none';
+    }
+  }
 }
 
-function showAiForTier(tier) {
-  if (!aiBtn) return;
-  if (tier === 'pro' || tier === 'max') {
-    aiBtn.style.display = 'block';
+function parsePrice(str) {
+  var n = parseFloat(String(str || '').replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+function showAiForTier(tier, afterSearch) {
+  if (!aiBtnWrapper || !aiBtnLabel) return;
+  if (afterSearch && (tier === 'pro' || tier === 'max')) {
+    aiBtnLabel.textContent = tier === 'pro' ? "Penn's Price Comp" : "Penn's Take";
+    if (searchBtn) searchBtn.style.display = 'none';
+    aiBtnWrapper.style.display = 'block';
   } else {
-    aiBtn.style.display = 'none';
+    aiBtnWrapper.style.display = 'none';
+    if (searchBtn) {
+      searchBtn.style.display = '';
+      if (afterSearch) {
+        searchBtn.disabled = false;
+        searchBtn.textContent = 'Compare Prices';
+      }
+    }
   }
 }
 
@@ -122,13 +145,13 @@ async function runSearch() {
     chrome.storage.local.set({ tier: lastTier });
 
     setTierBar(data.usage, data.tier);
-    showAiForTier(data.tier);
+    showAiForTier(data.tier, true);
 
     if (!resultsEl) return;
     resultsEl.innerHTML = '';
 
     if (lastDeals.length > 0) {
-      lastDeals.forEach(function (item) {
+      lastDeals.forEach(function (item, index) {
         var div = document.createElement('div');
         div.className = 'result-item';
 
@@ -140,7 +163,13 @@ async function runSearch() {
         var source = item.source || 'Unknown';
         var link = safeHref(item.href || '#');
 
+        var rankBadge = '';
+        if (index < 3) {
+          rankBadge = '<div class="rank-badge rank-' + (index + 1) + '">' + (index + 1) + '</div>';
+        }
+
         div.innerHTML =
+          rankBadge +
           '<div class="result-info">' +
           '<div class="store">' +
           esc(source) +
@@ -168,7 +197,7 @@ async function runSearch() {
     if (resultsEl) {
       resultsEl.innerHTML = '<div class="error">Error: ' + esc(err.message) + '</div>';
     }
-  } finally {
+    showAiForTier(lastTier, false);
     searchBtn.disabled = false;
     searchBtn.textContent = 'Compare Prices';
   }
@@ -195,12 +224,15 @@ if (aiBtn) {
         body: JSON.stringify({ product: currentProduct, deals: lastDeals }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'AI request failed');
+      if (!res.ok) throw new Error(data.message || data.error || 'AI request failed');
       aiPanel.textContent = data.analysis || '';
     } catch (e) {
       aiPanel.textContent = 'Error: ' + e.message;
     } finally {
       aiBtn.disabled = false;
+      if (aiBtnLabel) {
+        aiBtnLabel.textContent = lastTier === 'pro' ? "Penn's Price Comp" : "Penn's Take";
+      }
     }
   });
 }
@@ -208,6 +240,13 @@ if (aiBtn) {
 document.getElementById('openSettings')?.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+
+function refreshAccountBtn() {
+  chrome.storage.local.get(['username', 'userEmail'], (s) => {
+    const btn = document.getElementById('openSettings');
+    if (btn) btn.textContent = s.username || s.userEmail || 'Account';
+  });
+}
 
 async function refreshUsageBar() {
   try {
@@ -217,7 +256,6 @@ async function refreshUsageBar() {
     const data = await res.json();
     if (!res.ok) return;
     setTierBar(data.usage, data.tier);
-    showAiForTier(data.tier);
     chrome.storage.local.set({ tier: data.tier });
   } catch {
     /* offline or API down */
@@ -226,3 +264,4 @@ async function refreshUsageBar() {
 
 init();
 void refreshUsageBar();
+refreshAccountBtn();

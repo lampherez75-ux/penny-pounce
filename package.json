@@ -9,11 +9,15 @@
     "deploy": "vercel --prod",
     "vendor:instant": "cp node_modules/@instantdb/core/dist/standalone/index.umd.js vendor/instantdb-core.umd.js"
   },
-  "keywords": ["price-comparison", "api", "serp"],
+  "keywords": [
+    "price-comparison",
+    "api",
+    "serp"
+  ],
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@google/genai": "^1.50.1",
     "@instantdb/admin": "^0.17.0",
     "@upstash/redis": "^1.34.3",
     "stripe": "^17.4.0"

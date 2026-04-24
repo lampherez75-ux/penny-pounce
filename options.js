@@ -12,9 +12,12 @@ function showStatus(el, message, ok) {
 
 function syncAuthToChromeStorage(user) {
   if (user && user.refresh_token) {
-    chrome.storage.local.set({ instantRefreshToken: user.refresh_token });
+    chrome.storage.local.set({
+      instantRefreshToken: user.refresh_token,
+      userEmail: user.email || '',
+    });
   } else {
-    chrome.storage.local.remove('instantRefreshToken');
+    chrome.storage.local.remove(['instantRefreshToken', 'userEmail', 'username']);
   }
 }
 
@@ -35,10 +38,51 @@ function renderAuth(user) {
     out.classList.add('hidden');
     inn.classList.remove('hidden');
     emailEl.textContent = 'Signed in as ' + user.email;
+    loadProfile(user);
   } else {
     inn.classList.add('hidden');
     out.classList.remove('hidden');
   }
+}
+
+let profileUnsub = null;
+let currentProfileId = null;
+let currentUserId = null;
+
+function loadProfile(user) {
+  if (profileUnsub) {
+    profileUnsub();
+    profileUnsub = null;
+  }
+
+  currentProfileId = null;
+  currentUserId = user.id;
+
+  const displayEl = document.getElementById('usernameDisplay');
+  const setWrap = document.getElementById('usernameSetWrap');
+  const usernameInput = document.getElementById('usernameInput');
+
+  if (!db || !user) return;
+
+  profileUnsub = db.subscribeQuery(
+    { profiles: { $: { where: { 'user.id': user.id } } } },
+    ({ data, error }) => {
+      if (error) return;
+      const profile = data?.profiles?.[0];
+      const username = profile?.username || '';
+      currentProfileId = profile?.id || null;
+      if (username) {
+        if (displayEl) displayEl.textContent = 'Username: ' + username;
+        if (setWrap) setWrap.classList.add('hidden');
+        if (usernameInput) usernameInput.value = username;
+        chrome.storage.local.set({ username });
+      } else {
+        if (displayEl) displayEl.textContent = '';
+        if (setWrap) setWrap.classList.remove('hidden');
+        chrome.storage.local.remove('username');
+      }
+    }
+  );
 }
 
 function initInstant(appId) {
@@ -133,10 +177,39 @@ document.getElementById('verifyCode')?.addEventListener('click', async () => {
   }
 });
 
+document.getElementById('saveUsername')?.addEventListener('click', async () => {
+  const input = document.getElementById('usernameInput');
+  const status = document.getElementById('authStatus');
+  const username = input?.value?.trim() || '';
+  if (!db || !currentUserId) {
+    showStatus(status, 'Not signed in', false);
+    return;
+  }
+  if (!username) {
+    showStatus(status, 'Enter a username', false);
+    return;
+  }
+  try {
+    const profileId = currentProfileId || crypto.randomUUID();
+    await db.transact(
+      db.tx.profiles[profileId].update({ username }).link({ user: currentUserId })
+    );
+    showStatus(status, 'Username saved', true);
+  } catch (e) {
+    showStatus(status, e?.message || 'Failed to save username', false);
+  }
+});
+
 document.getElementById('signOut')?.addEventListener('click', async () => {
   if (!db) return;
   const status = document.getElementById('authStatus');
   try {
+    if (profileUnsub) {
+      profileUnsub();
+      profileUnsub = null;
+    }
+    currentProfileId = null;
+    currentUserId = null;
     await db.auth.signOut();
     syncAuthToChromeStorage(null);
     sentEmail = '';
@@ -147,4 +220,24 @@ document.getElementById('signOut')?.addEventListener('click', async () => {
   }
 });
 
+async function loadDevTier() {
+  const st = await chrome.storage.local.get(['devTier']);
+  const sel = document.getElementById('devTierSelect');
+  if (sel) sel.value = st.devTier || '';
+}
+
+document.getElementById('saveDevTier')?.addEventListener('click', async () => {
+  const sel = document.getElementById('devTierSelect');
+  const status = document.getElementById('devTierStatus');
+  const value = sel?.value || '';
+  if (value) {
+    await chrome.storage.local.set({ devTier: value, devUserId: 'dev-user' });
+    showStatus(status, `Tier override set to "${value}". Reopen the popup to see changes.`, true);
+  } else {
+    await chrome.storage.local.remove(['devTier', 'devUserId']);
+    showStatus(status, 'Tier override cleared — using real subscription tier.', true);
+  }
+});
+
 load();
+loadDevTier();

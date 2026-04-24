@@ -1,7 +1,7 @@
 export const TIER_LIMITS = {
-  lite: { dailySearches: 3, resultCap: 10, serpLive: false, history: false, ai: false, alerts: false },
-  pro: { dailySearches: 50, resultCap: 10, serpLive: true, history: true, ai: true, alerts: true },
-  max: { dailySearches: 200, resultCap: 50, serpLive: true, history: true, ai: true, alerts: true },
+  lite: { monthlyPrice: 0, dailySearches: 3, resultCap: 10, serpLive: false, history: false, ai: false, alerts: false },
+  pro: { monthlyPrice: 9, dailySearches: 33, resultCap: 10, serpLive: true, history: true, ai: true, alerts: true },
+  max: { monthlyPrice: 18, dailySearches: 83, resultCap: 50, serpLive: true, history: true, ai: true, alerts: true },
 };
 
 export function normalizeTier(t) {

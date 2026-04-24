@@ -1,5 +1,5 @@
 import { buffer } from 'node:stream/consumers';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { setCors, handleOptions } from '../lib/cors.js';
 import { getAuthContext } from '../lib/auth.js';
 import { getRedis, usageKey, utcDateString } from '../lib/redis.js';
@@ -103,9 +103,8 @@ export default async function handler(req, res) {
     });
   }
 
-  const modelId = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelId });
+  const modelId = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const ai = new GoogleGenAI({ apiKey });
 
   const summary = deals.slice(0, 15).map((d, i) => ({
     i: i + 1,
@@ -119,18 +118,21 @@ export default async function handler(req, res) {
   const promptMax =
     'You are a deal advisor. Given a product name and offers, rank top picks with reasoning, flag risks (too-good-to-be-true pricing, sparse data), and suggest what to verify before buying. 3-5 short paragraphs. No affiliate or legal advice.';
 
-  const prompt = tier === 'max' ? promptMax : promptPro;
+  const systemPrompt = tier === 'max' ? promptMax : promptPro;
+  const userContent = `Product: ${product}\nOffers JSON: ${JSON.stringify(summary)}`;
 
   try {
-    const text = await model.generateContent([
-      { text: prompt },
-      { text: `Product: ${product}\nOffers JSON: ${JSON.stringify(summary)}` },
-    ]);
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: systemPrompt }, { text: userContent }],
+        },
+      ],
+    });
 
-    const out =
-      text.response?.text?.() ||
-      text.response?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('\n') ||
-      '';
+    const out = response.text || '';
 
     return res.status(200).json({
       tier,
