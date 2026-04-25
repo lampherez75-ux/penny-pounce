@@ -22,6 +22,55 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderBullets(bullets) {
+  if (!Array.isArray(bullets) || !bullets.length) return '';
+  return '<ul class="ai-bullets">' +
+    bullets.map(function (b) {
+      return '<li><span class="bullet-label">' + escHtml(b.label) + ':</span>' +
+             '<span class="bullet-text">' + escHtml(b.text) + '</span></li>';
+    }).join('') +
+    '</ul>';
+}
+
+function renderProAnalysis(data) {
+  if (!data || typeof data !== 'object') return '<p class="ai-overview">' + escHtml(String(data || '')) + '</p>';
+  let html = '';
+  if (data.overview) {
+    html += '<p class="ai-overview">' + escHtml(data.overview) + '</p>';
+  }
+  html += renderBullets(data.bullets);
+  return html;
+}
+
+function renderMaxAnalysis(data) {
+  if (!data || typeof data !== 'object') return '<p class="ai-overview">' + escHtml(String(data || '')) + '</p>';
+  let html = '';
+  if (Array.isArray(data.winners) && data.winners.length) {
+    data.winners.forEach(function (w, i) {
+      html +=
+        '<div class="winner-card-wrapper">' +
+          '<div class="winner-card">' +
+            '<div class="winner-label">Winner #' + (i + 1) + '</div>' +
+            '<div class="winner-store-price">' + escHtml(w.store) + ' &mdash; ' + escHtml(w.price) + '</div>' +
+            '<div class="winner-reason">' + escHtml(w.reason) + '</div>' +
+          '</div>' +
+        '</div>';
+    });
+  }
+  if (data.overview) {
+    html += '<p class="ai-overview">' + escHtml(data.overview) + '</p>';
+  }
+  html += renderBullets(data.bullets);
+  return html;
+}
+
 function safeHref(u) {
   if (!u || u === '#') return '#';
   try {
@@ -92,7 +141,7 @@ function parsePrice(str) {
 function showAiForTier(tier, afterSearch) {
   if (!aiBtnWrapper || !aiBtnLabel) return;
   if (afterSearch && (tier === 'pro' || tier === 'max')) {
-    aiBtnLabel.textContent = tier === 'pro' ? "Penn's Price Comp" : "Penn's Take";
+    aiBtnLabel.textContent = tier === 'pro' ? "Penn's Price Analysis" : "Penn's Pick";
     if (searchBtn) searchBtn.style.display = 'none';
     aiBtnWrapper.style.display = 'block';
   } else {
@@ -224,14 +273,29 @@ if (aiBtn) {
         body: JSON.stringify({ product: currentProduct, deals: lastDeals }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'AI request failed');
-      aiPanel.textContent = data.analysis || '';
+      if (!res.ok) {
+        if (data.quota_exceeded) {
+          aiPanel.innerHTML =
+            'Gemini API quota exceeded. <a href="https://ai.dev/rate-limit" target="_blank" rel="noopener noreferrer">Enable billing</a> to continue using AI features, or try again tomorrow.';
+        } else {
+          throw new Error(data.message || data.error || 'AI request failed');
+        }
+        return;
+      }
+      const analysis = data.analysis;
+      if (analysis && typeof analysis === 'object') {
+        aiPanel.innerHTML = (data.tier || lastTier) === 'max'
+          ? renderMaxAnalysis(analysis)
+          : renderProAnalysis(analysis);
+      } else {
+        aiPanel.innerHTML = renderProAnalysis(analysis);
+      }
     } catch (e) {
       aiPanel.textContent = 'Error: ' + e.message;
     } finally {
       aiBtn.disabled = false;
       if (aiBtnLabel) {
-        aiBtnLabel.textContent = lastTier === 'pro' ? "Penn's Price Comp" : "Penn's Take";
+        aiBtnLabel.textContent = lastTier === 'pro' ? "Penn's Price Analysis" : "Penn's Pick";
       }
     }
   });

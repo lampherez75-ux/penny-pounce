@@ -114,9 +114,9 @@ export default async function handler(req, res) {
   }));
 
   const promptPro =
-    'You are a concise price analyst. Given a product name and a list of store offers (title, store, price), identify the best value, call out outliers, and note caveats (unknown shipping, missing reviews). 2-4 short paragraphs. No affiliate or legal advice.';
+    'You are a price analyst. Given a product and store offers, return ONLY valid JSON — no markdown, no code fences, no extra text. Use this exact structure:\n{"overview":"1-2 sentences describing the product and its typical retail price range.","bullets":[{"label":"Best Value","text":"which offer is the best deal and why"},{"label":"Outliers","text":"any suspiciously priced or off-brand offers"},{"label":"Caveats","text":"important purchase caveats"},{"label":"Shipping & Returns","text":"what to know about shipping and return policies"}]}\nNo affiliate or legal advice.';
   const promptMax =
-    'You are a deal advisor. Given a product name and offers, rank top picks with reasoning, flag risks (too-good-to-be-true pricing, sparse data), and suggest what to verify before buying. 3-5 short paragraphs. No affiliate or legal advice.';
+    'You are a deal advisor. Given a product and store offers, return ONLY valid JSON — no markdown, no code fences, no extra text. Use this exact structure:\n{"winners":[{"store":"store name","price":"$X.XX","reason":"one sentence why this is the top pick"},{"store":"store name","price":"$X.XX","reason":"one sentence why this is the runner-up"}],"overview":"1-2 sentences describing the product and its typical retail price range.","bullets":[{"label":"Best Value","text":"..."},{"label":"Outliers","text":"..."},{"label":"Caveats","text":"..."},{"label":"Risks","text":"..."},{"label":"Verify","text":"what to double-check before buying"}]}\nNo affiliate or legal advice.';
 
   const systemPrompt = tier === 'max' ? promptMax : promptPro;
   const userContent = `Product: ${product}\nOffers JSON: ${JSON.stringify(summary)}`;
@@ -134,14 +134,42 @@ export default async function handler(req, res) {
 
     const out = response.text || '';
 
+    // Strip markdown code fences if the model wraps the JSON anyway
+    const jsonText = out.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+    let analysis;
+    try {
+      analysis = JSON.parse(jsonText);
+    } catch {
+      analysis = out; // fallback to raw text
+    }
+
     return res.status(200).json({
       tier,
-      analysis: out,
+      analysis,
       ai_usage: { used: reserved.used, cap: reserved.cap },
     });
   } catch (e) {
     await refundAi(redis, reserved.key);
     console.error('Gemini error:', e);
-    return res.status(502).json({ error: 'AI request failed', message: e.message });
+
+    // Detect quota/billing errors from Gemini and return a friendly message
+    const msg = e.message || '';
+    const isQuota =
+      e.status === 429 ||
+      (typeof e.code === 'number' && e.code === 429) ||
+      msg.includes('429') ||
+      msg.includes('RESOURCE_EXHAUSTED') ||
+      msg.includes('quota');
+
+    if (isQuota) {
+      return res.status(429).json({
+        error: 'AI quota exceeded',
+        message:
+          'The Gemini API free-tier quota has been exhausted. Please enable billing at https://ai.dev/rate-limit or try again later.',
+        quota_exceeded: true,
+      });
+    }
+
+    return res.status(502).json({ error: 'AI request failed', message: msg });
   }
 }
