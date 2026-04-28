@@ -11,7 +11,10 @@ export function isGoogleHostUrl(url) {
 }
 
 /**
- * Ordered candidate URLs: soft preference for non-Google when picking fallback.
+ * Ordered candidate URLs, highest confidence first.
+ * direct_link is SerpAPI's explicit direct-to-retailer field and always wins.
+ * merchant.link is the next best bet for non-GTIN shopping_results.
+ * item.link / product_link fall back (may be google.com product pages).
  */
 export function collectUrlCandidates(item) {
   const out = [];
@@ -19,8 +22,11 @@ export function collectUrlCandidates(item) {
     if (u && typeof u === 'string' && u !== '#' && !out.includes(u)) out.push(u);
   };
 
+  if (item.direct_link && !isGoogleHostUrl(item.direct_link)) push(item.direct_link);
   if (item.link && !isGoogleHostUrl(item.link)) push(item.link);
   if (item.product_link && !isGoogleHostUrl(item.product_link)) push(item.product_link);
+  if (item.merchant?.link && !isGoogleHostUrl(item.merchant.link)) push(item.merchant.link);
+  // Google-hosted fallbacks (last resort)
   if (item.merchant?.link) push(item.merchant.link);
   if (item.link) push(item.link);
   if (item.product_link) push(item.product_link);
