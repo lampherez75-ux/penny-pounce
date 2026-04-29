@@ -19,6 +19,7 @@ import {
 import {
   fetchShoppingRawForLite,
   serpGoogleShopping,
+  serpProductSellers,
   shoppingResultsFromSerpJson,
 } from './lib/providers.js';
 
@@ -107,9 +108,100 @@ async function maybeRecordHistory(redis, userId, tier, product, deals) {
   await redis.expire(key, ttl);
 }
 
-function buildDealsFromShoppingResults(items, tier) {
+const USED_CONDITION_RE = /\b(used|refurbished|pre-owned|preowned|open.?box|reconditioned|renewed|second.?hand|pre.?loved|vintage|salvage|surplus|as.?is|parts.?only|for.?parts)\b/i;
+
+/**
+ * Narrow results to those matching extracted page attributes (color, pack count).
+ * Falls back to the full list if attribute filtering removes everything.
+ */
+function filterByAttributes(deals, attrs) {
+  if (!attrs || typeof attrs !== 'object') return deals;
+  const { packCount, color, size } = attrs;
+  if (!packCount && !color && !size) return deals;
+
+  const filtered = deals.filter((deal) => {
+    const title = deal.title || '';
+
+    if (packCount) {
+      const packRe = new RegExp(
+        `\\b${packCount}[\\s\\-]?(?:pack|count|ct|piece|pk|pcs|pairs?)\\b`,
+        'i'
+      );
+      if (!packRe.test(title)) return false;
+    }
+
+    if (color) {
+      const escaped = color.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const colorRe = new RegExp(`\\b${escaped}\\b`, 'i');
+      if (!colorRe.test(title)) return false;
+    }
+
+    if (size) {
+      const escaped = size.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // For numeric sizes, allow common prefixes/suffixes: "US 13", "Size 13", "13M", "13 D(M)"
+      const isNumeric = /^\d/.test(size);
+      const sizeRe = isNumeric
+        ? new RegExp(
+            `(?:^|[\\s/,|])(?:US\\s*|Size\\s*|UK\\s*|EU\\s*)?${escaped}(?:\\s*[MWDEE]+)?(?:[\\s/,|]|$)`,
+            'i'
+          )
+        : new RegExp(`\\b${escaped}\\b`, 'i');
+      if (!sizeRe.test(title)) return false;
+    }
+
+    return true;
+  });
+
+  return filtered.length > 0 ? filtered : deals;
+}
+
+function isUsedItem(item) {
+  // Any populated second_hand_condition field means the item is not new
+  if (item.second_hand_condition) return true;
+  // Explicit condition field (e.g. "Used", "Refurbished") from SerpAPI
+  if (USED_CONDITION_RE.test(item.condition || '')) return true;
+  const ext = Array.isArray(item.extensions) ? item.extensions.join(' ') : '';
+  return (
+    USED_CONDITION_RE.test(item.title || '') ||
+    USED_CONDITION_RE.test(ext) ||
+    USED_CONDITION_RE.test(item.snippet || '')
+  );
+}
+
+/**
+ * Tokenize a string into lowercase significant words (3+ chars, no stopwords).
+ */
+const STOPWORDS = new Set(['the', 'and', 'for', 'with', 'gen', 'new', 'ver']);
+function tokenize(str) {
+  return String(str || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+}
+
+/**
+ * Returns the fraction of query tokens that appear in the result title.
+ * A score >= TITLE_MATCH_THRESHOLD means "close enough".
+ */
+const TITLE_MATCH_THRESHOLD = 0.5;
+function titleMatchScore(queryTokens, resultTitle) {
+  if (!queryTokens.length) return 1;
+  const resultTokens = new Set(tokenize(resultTitle));
+  const hits = queryTokens.filter((t) => resultTokens.has(t)).length;
+  return hits / queryTokens.length;
+}
+
+function buildDealsFromShoppingResults(items, tier, product) {
   const aff = affiliatesEnabledForTier(tier);
-  const normalized = items.map((item) => normalizeSerpItem(item, aff));
+  const queryTokens = tokenize(product);
+  const newOnly = items.filter((item) => !isUsedItem(item));
+  const matched = newOnly.filter(
+    (item) => titleMatchScore(queryTokens, item.title) >= TITLE_MATCH_THRESHOLD
+  );
+  // Fall back to unfiltered new-only list if the similarity filter removes everything
+  const candidates = matched.length > 0 ? matched : newOnly;
+  const normalized = candidates.map((item) => normalizeSerpItem(item, aff));
   const deduped = dedupeDeals(normalized);
   return rankDeals(deduped);
 }
@@ -124,6 +216,10 @@ export default async function handler(req, res) {
 
   const product = req.query.product;
   const gtin = req.query.gtin || req.query.upc || '';
+  let attrs = null;
+  if (req.query.attrs) {
+    try { attrs = JSON.parse(req.query.attrs); } catch { /* ignore malformed */ }
+  }
 
   if (!product || typeof product !== 'string') {
     return res.status(400).json({ error: 'Product name required' });
@@ -162,16 +258,38 @@ export default async function handler(req, res) {
     if (!deals) {
       let rawJson;
       if (!policy.serpLive) {
-        const pack = await fetchShoppingRawForLite(product);
+        const pack = await fetchShoppingRawForLite(product, gtin);
         rawJson = pack.data;
         meta.source = pack.source;
       } else {
-        rawJson = await serpGoogleShopping(product);
+        rawJson = await serpGoogleShopping(product, gtin);
         meta.source = 'serpapi';
       }
 
       const items = shoppingResultsFromSerpJson(rawJson);
-      deals = buildDealsFromShoppingResults(items, tier);
+
+      // For text queries without a GTIN, do a second-pass product_id lookup.
+      // shopping_results items carry a product_id; querying that ID returns
+      // sellers_results.online_sellers where every entry has a direct retailer link.
+      // The initial search result is used as fallback if this lookup fails.
+      let sourceItems = items;
+      if (!gtin && items.length > 0) {
+        const topId = items.find((i) => i.product_id)?.product_id;
+        if (topId) {
+          try {
+            const sellerJson = await serpProductSellers(topId, product);
+            const sellers = shoppingResultsFromSerpJson(sellerJson);
+            if (sellers.length > 0) {
+              sourceItems = sellers;
+              meta.source += '+product_detail';
+            }
+          } catch (e) {
+            console.warn('Product seller lookup failed, falling back to shopping_results:', e.message);
+          }
+        }
+      }
+
+      deals = buildDealsFromShoppingResults(sourceItems, tier, product);
 
       if (redis) {
         await redis.set(cacheKey, serializeDealsForCache(deals), {
@@ -183,7 +301,7 @@ export default async function handler(req, res) {
     }
 
     const cap = policy.resultCap;
-    const sliced = deals.slice(0, cap);
+    const sliced = filterByAttributes(deals, attrs).slice(0, cap);
 
     await maybeRecordHistory(redis, ctx.userId, tier, product, sliced);
 

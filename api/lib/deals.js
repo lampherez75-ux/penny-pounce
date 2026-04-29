@@ -13,7 +13,7 @@ export function isGoogleHostUrl(url) {
 /**
  * Ordered candidate URLs, highest confidence first.
  * direct_link is SerpAPI's explicit direct-to-retailer field and always wins.
- * merchant.link is the next best bet for non-GTIN shopping_results.
+ * merchant.link / merchants[].link are the next best bet for non-GTIN shopping_results.
  * item.link / product_link fall back (may be google.com product pages).
  */
 export function collectUrlCandidates(item) {
@@ -22,14 +22,28 @@ export function collectUrlCandidates(item) {
     if (u && typeof u === 'string' && u !== '#' && !out.includes(u)) out.push(u);
   };
 
+  // Phase 1: confirmed non-Google direct links
   if (item.direct_link && !isGoogleHostUrl(item.direct_link)) push(item.direct_link);
   if (item.link && !isGoogleHostUrl(item.link)) push(item.link);
   if (item.product_link && !isGoogleHostUrl(item.product_link)) push(item.product_link);
   if (item.merchant?.link && !isGoogleHostUrl(item.merchant.link)) push(item.merchant.link);
-  // Google-hosted fallbacks (last resort)
+  // SerpAPI sometimes returns a merchants[] array with per-seller direct links
+  if (Array.isArray(item.merchants)) {
+    for (const m of item.merchants) {
+      if (m.link && !isGoogleHostUrl(m.link)) push(m.link);
+    }
+  }
+
+  // Phase 2: Google-hosted fallbacks (last resort — beats showing nothing)
+  if (item.direct_link) push(item.direct_link); // include even if Google-hosted
   if (item.merchant?.link) push(item.merchant.link);
   if (item.link) push(item.link);
   if (item.product_link) push(item.product_link);
+  if (Array.isArray(item.merchants)) {
+    for (const m of item.merchants) {
+      if (m.link) push(m.link);
+    }
+  }
   return out;
 }
 

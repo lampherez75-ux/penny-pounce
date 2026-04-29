@@ -11,7 +11,8 @@ export async function serpGoogleShopping(query, gtin = '') {
 
   const params = new URLSearchParams({
     engine: 'google_shopping',
-    tbs: 'mr:1,new:1',
+    // new:1 = New condition only; exclude used/refurbished at the Google level
+    tbs: 'new:1',
     api_key: key,
   });
 
@@ -29,6 +30,29 @@ export async function serpGoogleShopping(query, gtin = '') {
   if (!res.ok) {
     throw new Error(`SerpAPI returned ${res.status}`);
   }
+  return res.json();
+}
+
+/**
+ * Fetch all sellers for a specific Google product ID.
+ * Returns sellers_results.online_sellers — each entry has a direct retailer link.
+ * Used as a second-pass enrichment for text-query searches that lack direct_link.
+ */
+export async function serpProductSellers(productId, query) {
+  const key = process.env.SERPAPI_KEY;
+  if (!key) throw new Error('SERPAPI_KEY not configured');
+
+  const params = new URLSearchParams({
+    engine: 'google_shopping',
+    q: query,
+    product_id: productId,
+    tbs: 'new:1',
+    api_key: key,
+  });
+
+  const url = `https://serpapi.com/search.json?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`SerpAPI product sellers returned ${res.status}`);
   return res.json();
 }
 

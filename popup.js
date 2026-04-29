@@ -10,6 +10,7 @@ var aiPanel = document.getElementById('aiPanel');
 
 var currentProduct = null;
 var currentGtin = null;
+var currentAttributes = null;
 var lastDeals = [];
 var lastTier = 'lite';
 
@@ -102,11 +103,13 @@ function init() {
         if (response && response.name) {
           currentProduct = response.name;
           currentGtin = response.gtin || null;
+          currentAttributes = response.attributes || null;
           if (productNameEl) productNameEl.textContent = response.name;
         } else {
           if (productNameEl) productNameEl.textContent = 'No product detected';
           currentProduct = null;
           currentGtin = null;
+          currentAttributes = null;
         }
       });
     } catch (err) {
@@ -174,6 +177,7 @@ async function runSearch() {
     const base = await apiUrl('/api/search');
     const q = new URLSearchParams({ product: currentProduct });
     if (currentGtin) q.set('gtin', currentGtin);
+    if (currentAttributes) q.set('attrs', JSON.stringify(currentAttributes));
     const headers = await apiHeaders();
     const res = await fetch(base + '?' + q.toString(), { headers });
 
@@ -250,6 +254,18 @@ async function runSearch() {
     searchBtn.disabled = false;
     searchBtn.textContent = 'Compare Prices';
   }
+}
+
+// Open deal links in a background tab so the popup stays visible for comparison.
+if (resultsEl) {
+  resultsEl.addEventListener('click', function (e) {
+    var anchor = e.target.closest('a');
+    if (!anchor) return;
+    var href = anchor.getAttribute('href');
+    if (!href || href === '#') return;
+    e.preventDefault();
+    chrome.tabs.create({ url: href, active: false });
+  });
 }
 
 if (searchBtn) {
